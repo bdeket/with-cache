@@ -163,24 +163,23 @@
       #f)))
 
 (define (call-with-atomic-input-file filename success-proc)
-  (call/atomic filename (λ () (call-with-input-file filename success-proc))))
+  (call/atomic filename 'shared (λ () (call-with-input-file filename success-proc))))
 
 (define (call-with-atomic-output-file filename success-proc)
-  (call/atomic filename (λ () (call-with-output-file filename success-proc #:exists 'replace))))
+  (call/atomic filename 'exclusive (λ () (call-with-output-file filename success-proc #:exists 'replace))))
 
-(define (call/atomic filename success-thunk)
+(define (call/atomic filename kind success-thunk)
   (define lockfile (make-lock-file-name
                      (build-path (find-system-path 'temp-dir)
                                  (format "with-cache~a" (equal-hash-code filename)))))
   (call-with-file-lock/timeout filename
-                               'exclusive
+                               kind
                                success-thunk
                                (λ ()
                                  (raise (exn:fail:filesystem
                                           (format "with-cache: Failed to lock file '~a', delete the lock '~a' and try again." filename lockfile)
                                           (current-continuation-marks))))
                                #:lock-file lockfile))
-
 (define (parent-directory-exists? ps)
   (and (path-string? ps)
        (let ([dir (path-only ps)])
